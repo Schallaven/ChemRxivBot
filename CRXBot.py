@@ -67,21 +67,43 @@ def tweet_image(url, message, usetwitter = True):
     write_log(f'Tweet successful. {message} ({lenmessage} characters).')
     
 
-def prepare_tweet(title, author, preprintURL):
-    ## Tweet format : {TITLE} by {AUTHOR} \n {DOI URL} [thumbnail image]
+def prepare_tweet(title, authors, preprintURL, tags):
+    ## Tweet format : {TITLE} by {AUTHOR} {TAGS as HASHTAGS} \n\n {DOI URL} [thumbnail image]
+    
+    ## Tweet title
+    tweetTitle = f'{title} by '
 
-    ## Add a block that determines if the paper had more than one author
-    ## and selectively appends (or doesn't append) "& co-workers"
-
-    tweetText = f'{title} by {author} & co-workers' + "\n\n" + preprintURL
+    ## Tweet author(s)
+    ## Determines if the paper had more than one author and selectively appends 
+    ## (or doesn't append) "& co-workers"
+    tweetAuthors = authors[-1]['full_name']
+    
+    if len(authors) > 1:
+        tweetAuthors += " & co-workers"
 
     ## Need to make sure the total length of the tweet is <280 characters
-
-    if len(tweetText) >= 280:
-        write_log('Tweet text too long; cannot continue')
+    ## An url is always 23 characters, no matter the length. We want to add
+    ## two newline characters before the URL (23+2=25). Therefore, the length 
+    ## we are checking for here is actually 280-25=255 characters.
+    tweetText = tweetTitle + tweetAuthors
+    
+    ## Preprint keywords as Tweet hashtags
+    ## This tries to include as many keywords as possible as hashtags
+    for tag in tags:    
+        hashtag = " #" + tag.lower().replace(' ', '-')
+        
+        if (len(tweetText) + len(hashtag)) <= 255:
+            tweetText += hashtag
+    
+    ## Add URL (always 23 Tweet characters, no matter how long it is)
+    tweetText += "\n\n" + preprintURL
+    
+    ## We guarantee more or less that this thing is <=280 characters long
+    realtweetlength = len(tweetText) - len(preprintURL) + 23
+    if realtweetlength > 280:
         return False
-    else:
-        return tweetText
+    
+    return tweetText 
 
     ## For authors, enumerated as a list of dictionaries. Relevant key is full_name
     ## Possible to assess whether all authors can fit before deciding which to tweet?
@@ -311,10 +333,6 @@ for i in range(numberPreprints):
 
             ## Extracting the author data takes a bit more work
             authorData = current_preprint['authors']
-            lastAuthorData = authorData[-1]
-
-            ## This is the variable to pass to the tweet preparer
-            preprintAuthor = lastAuthorData['full_name']
 
             ## Format the URL based off of the doi
 
@@ -324,13 +342,16 @@ for i in range(numberPreprints):
             ## Modification: use the first good image in the files of the preprint
             thumbnailURL = get_preprint_image_url(api.files(preprint_id))
             
+            ## Get keywords of preprint
+            tags = current_preprint['tags']
+            
 
             ## Prepare the tweet; throw an error if it it's too long
             ## Future note: what should we do when they are too long?
             ## How often will that happen? Should it notify me somehow?
             ## Let's wait and see...
 
-            tweetText = prepare_tweet(preprint_title, preprintAuthor, preprintURL)
+            tweetText = prepare_tweet(preprint_title, authorData, preprintURL, tags)
 
             if tweetText == False:
                 write_log(f'NOTICE: Could not tweet preprint at {preprintURL}, please check manually.')
