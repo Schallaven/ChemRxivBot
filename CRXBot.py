@@ -16,10 +16,10 @@ def write_log(message):
     with open('activity_log.txt', 'a') as f:
         f.write(str(datetime.now()) + ' ' + message + '\n')
 
-def tweet_image(url, message, usetwitter = True):
+def tweet_image(url, message, usetwitter = True):    
     ###Takes in a file from a URL, downloads it,
     ###tweets it with the given message, then deletes the file
-    filename = 'temp.jpg'
+    filename = 'temp.png'
     request = requests.get(url, stream=True)
     if request.status_code == 200:
         with open(filename, 'wb') as image:
