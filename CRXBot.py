@@ -36,26 +36,36 @@ def get_preprint_image_url(files):
 def tweet_image(url, message, usetwitter = True):  
     ###Takes in a file from a URL, downloads it,
     ###tweets it with the given message, then deletes the file
-    if len(url) == 0:
-        write_log("Error, empty image URL.")
-        return
-        
+    ###Should there be no url given or there be an error with
+    ###the download, then just tweet without image
+    include_image = False
     filename = 'temp.png'
-    request = requests.get(url, stream=True)
-    if request.status_code == 200:
-        with open(filename, 'wb') as image:
-            for chunk in request:
-                image.write(chunk)
+    
+    if len(url) > 0:
+        request = requests.get(url, stream=True)
+        if request.status_code == 200:
+            with open(filename, 'wb') as image:
+                for chunk in request:
+                    image.write(chunk)
+            include_image = True
+        else:
+            write_log("Error, couldn't download image. Continue without.")
         
-        if usetwitter:        
+    if usetwitter:
+        if include_image:        
             twitter_api.update_with_media(filename, status=message)
             os.remove(filename)
         else:
-            write_log(f'Offline-Tweeting due to user request (--notwitter on command line).')          
-        
-        write_log(f'Tweet successful. {message}')
+            twitter_api.update_status(message)  
     else:
-        write_log("Error, couldn't download image.")
+        write_log(f'Offline-Tweeting due to user request (--notwitter on command line).')   
+        if include_image:
+            filesize = os.path.getsize(filename) // 1024 # in Kilobytes
+            write_log(f'Tweet includes image of {filesize} KBytes.')
+    
+    lenmessage = len(message)
+    write_log(f'Tweet successful. {message} ({lenmessage} characters).')
+    
 
 def prepare_tweet(title, author, preprintURL):
     ## Tweet format : {TITLE} by {AUTHOR} \n {DOI URL} [thumbnail image]
