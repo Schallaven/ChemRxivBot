@@ -19,6 +19,10 @@ def write_log(message):
 def tweet_image(url, message, usetwitter = True):    
     ###Takes in a file from a URL, downloads it,
     ###tweets it with the given message, then deletes the file
+    if len(url) == 0:
+        write_log("Error, empty image URL.")
+        return
+        
     filename = 'temp.png'
     request = requests.get(url, stream=True)
     if request.status_code == 200:
