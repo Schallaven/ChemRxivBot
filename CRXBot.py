@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
 import requests
@@ -15,7 +16,7 @@ def write_log(message):
     with open('activity_log.txt', 'a') as f:
         f.write(str(datetime.now()) + ' ' + message + '\n')
 
-def tweet_image(url, message):
+def tweet_image(url, message, usetwitter = True):
     ###Takes in a file from a URL, downloads it,
     ###tweets it with the given message, then deletes the file
     filename = 'temp.jpg'
@@ -24,9 +25,13 @@ def tweet_image(url, message):
         with open(filename, 'wb') as image:
             for chunk in request:
                 image.write(chunk)
-
-        twitter_api.update_with_media(filename, status=message)
-        os.remove(filename)
+        
+        if usetwitter:        
+            twitter_api.update_with_media(filename, status=message)
+            os.remove(filename)
+        else:
+            write_log(f'Offline-Tweeting due to user request (--notwitter on command line).')          
+        
         write_log(f'Tweet successful. {message}')
     else:
         write_log("Error, couldn't download image.")
@@ -148,6 +153,22 @@ class chemRxivAPI:
 
 
 ###############################################################
+##                   PARAMETER EVALUATION                    ##
+###############################################################
+parser = argparse.ArgumentParser(
+			description = 'ChemRxiv Twitterbot that automates tweeting new preprints.')
+
+parser.add_argument('-v', '--version', help = 'prints version information', action='version', 
+                    version='CRXBot 1.0')
+
+parser.add_argument('-n', '--notwitter', help = 'Do not use Twitter API. useful for debugging '
+                    'without publishing actual Tweets.', action = 'store_false', 
+                    dest = 'usetwitter') 
+
+args = vars(parser.parse_args())
+
+
+###############################################################
 ##                      START UP ROUTINES                    ##
 ###############################################################
 
@@ -179,11 +200,15 @@ twitToken_secret = CRX_keys[3]
 chemRxiv_token = CRX_keys[4]
 
 ## Prep Twitter
-twitter_auth = tweepy.OAuthHandler(twitKey, twitSecret)
-twitter_auth.set_access_token(twitToken, twitToken_secret)
-twitter_api = tweepy.API(twitter_auth)
-twitterUser = twitter_api.me().screen_name
-write_log(f'Authenticated as Twitter user {twitterUser} successfully.')
+if args['usetwitter']:
+    twitter_auth = tweepy.OAuthHandler(twitKey, twitSecret)
+    twitter_auth.set_access_token(twitToken, twitToken_secret)
+    twitter_api = tweepy.API(twitter_auth)
+    twitterUser = twitter_api.me().screen_name
+    write_log(f'Authenticated as Twitter user {twitterUser} successfully.')
+else:
+    write_log(f'Skipped Twitter authentification due to user request'
+               ' (--notwitter on command line).')
 
 ## Connect to Figshare
 try:
@@ -275,7 +300,7 @@ for i in range(numberPreprints):
                 preprints_tweeted_FAILED += 1
             else:
                 write_log(f'Submitting {preprint_id} to Twitter...')
-                tweet_image(thumbnailURL, tweetText)
+                tweet_image(thumbnailURL, tweetText, args['usetwitter'])
                 preprints_tweeted += 1
 
 
@@ -284,6 +309,11 @@ for i in range(numberPreprints):
                 f.write(preprint_id + '\n')
             write_log(f'Wrote {current_preprint["id"]} to log')
             preprints_added += 1
-            time.sleep(1800) # Currently set to wait 30 sec after each tweet for testing purposes. Should be increased when running for real (likely to 1800).
+            
+            if args['usetwitter']:
+                time.sleep(1800) # Currently set to wait 30 sec after each tweet for 
+                                 # testing purposes. Should be increased when running for real 
+                                 # (likely to 1800).
+                                 
             ## Need to set a better solution for looping through the script. Considering Daemon or Cron
 write_log(f'All preprints checked. Processed {preprints_added} new preprints. Tweeted {preprints_tweeted}, failed to tweet {preprints_tweeted_FAILED}.')
