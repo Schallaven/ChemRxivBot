@@ -189,7 +189,7 @@ write_log(f'Authenticated as Twitter user {twitterUser} successfully.')
 try:
     api = chemRxivAPI(chemRxiv_token)
 except requests.exceptions.HTTPError as e:
-    write_log(f'Authentication did not succeed. Token was: {token}')
+    write_log(f'Authentication did not succeed. Token was: {chemRxiv_token}')
     write_log(f'Error: {e}')
     sys.exit(1)
 write_log("Authenticated with Figshare.")
