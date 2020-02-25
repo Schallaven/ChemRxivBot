@@ -15,8 +15,25 @@ def write_log(message):
     print(message)
     with open('activity_log.txt', 'a') as f:
         f.write(str(datetime.now()) + ' ' + message + '\n')
+        
+def get_preprint_image_url(files):
+    ###Files should be a list of dictionaries for each files
+    if type(files) is not list:
+        return ""
+    
+    for preprint_file in files:
+        if preprint_file['is_link_only']:
+            continue
+        
+        filename = preprint_file['name'].lower()
 
-def tweet_image(url, message, usetwitter = True):    
+        if filename.endswith('.png') or filename.endswith('.jpg'):
+            return preprint_file['download_url']
+    
+    return ""
+    
+        
+def tweet_image(url, message, usetwitter = True):  
     ###Takes in a file from a URL, downloads it,
     ###tweets it with the given message, then deletes the file
     if len(url) == 0:
@@ -153,6 +170,11 @@ class chemRxivAPI:
 
         p = {**criteria, 'institution': 259}
         return api.query_list('articles/search', method='POST', params=p)
+    
+    def files(self, identifier):
+        """Files of given preprint"""
+        
+        return api.query(f'articles/{identifier}/files')
 
 
 
@@ -289,8 +311,9 @@ for i in range(numberPreprints):
             preprintURL = doiRootURL + current_preprint['doi']
 
             ## Grab the thumbnail url
-
-            thumbnailURL = current_preprint['thumb']
+            ## Modification: use the first good image in the files of the preprint
+            thumbnailURL = get_preprint_image_url(api.files(preprint_id))
+            
 
             ## Prepare the tweet; throw an error if it it's too long
             ## Future note: what should we do when they are too long?
